@@ -106,7 +106,7 @@ int main(int argc, char**argv) {
     relu_kernel <<< gridSize_relu, blockSize_relu, 0, stream >>> (d_output1, N, B);
     tiling_matmul <<< gridSize1, blockSize1, 0, stream >>> (d_W2, d_output1, d_output2, N, B, N);
 
-    cudaEventRecord(end, stream1);
+    cudaEventRecord(end, stream);
     cudaStreamSynchronize(stream);
     float elapsedTime;
     cudaEventElapsedTime(&elapsedTime, start, end);
