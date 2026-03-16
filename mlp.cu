@@ -87,26 +87,29 @@ int main(int argc, char**argv) {
 
     cudaMemcpy(d_input, input, N * B * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(d_W1, W1, N * N * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_W2, W2, N * N * sizeof(float), cudaMemcpyHostToDevice);
 
-    dim3 gridSize(CEIL_DIV(N, BLOCK_SIZE), CEIL_DIV(N, NELEM * BLOCK_SIZE));
-    dim3 blockSize(BLOCK_SIZE, BLOCK_SIZE);
+    dim3 gridSize1(CEIL_DIV(B, BLOCK_SIZE), CEIL_DIV(N, NELEM * BLOCK_SIZE));
+    dim3 blockSize1(BLOCK_SIZE, BLOCK_SIZE);
+    dim3 gridSize_relu(CEIL_DIV(B, BLOCK_SIZE), CEIL_DIV(N, BLOCK_SIZE));
+    dim3 blockSize_relu(BLOCK_SIZE, BLOCK_SIZE);
     
-    cudaEvent_t start, end;
     cudaStream_t stream;
+    cudaEvent_t start, end;
     cudaStreamCreate(&stream);
     cudaEventCreate(&start);
     cudaEventCreate(&end);
     cudaEventRecord(start, stream);
 
-    tiling_matmul <<< gridSize, blockSize, 0, stream >>> (d_W1, d_input, d_output1, N, B, N);
+    tiling_matmul <<< gridSize1, blockSize1, 0, stream >>> (d_W1, d_input, d_output1, N, B, N);
+    relu_kernel <<< gridSize_relu, blockSize_relu, 0, stream >>> (d_output1, N, B);
+    tiling_matmul <<< gridSize1, blockSize1, 0, stream >>> (d_W2, d_output1, d_output2, N, B, N);
 
-    cudaEventRecord(end, stream);
-
+    cudaEventRecord(end, stream1);
     cudaStreamSynchronize(stream);
-
     float elapsedTime;
     cudaEventElapsedTime(&elapsedTime, start, end);
-
+    
     std::cout << elapsedTime << std::endl;
 
     // cudaMalloc(&d_W2, N * N * sizeof(float));
