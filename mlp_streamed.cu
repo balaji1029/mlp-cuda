@@ -118,7 +118,8 @@ int main(int argc, char** argv) {
         cudaEventCreate(&start[i]);
         cudaEventCreate(&end[i]);
     }
-    for (int i=0; i<4; i++) {
+    auto start = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < 4; i++) {
         cudaEventRecord(start[i], stream[i]);
         cudaMemcpyAsync(d_input[i], input[i], N * (B / 4) * sizeof(float), cudaMemcpyHostToDevice, stream[i]);
         tiling_matmul << < gridSize1, blockSize1, 0, stream[i] >> > (d_W1, d_input[i], d_output1[i], N, (B / 4), N);
@@ -126,13 +127,16 @@ int main(int argc, char** argv) {
         tiling_matmul << < gridSize1, blockSize1, 0, stream[i] >> > (d_W2, d_output1[i], d_output2[i], N, (B / 4), N);
         cudaEventRecord(end[i], stream[i]);
     }
-    for (int i=0; i<4; i++) {
+    for (int i = 0; i < 4; i++) {
         cudaStreamSynchronize(stream[i]);
     }
-    for (int i=0; i<4; i++) {
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsedTime = end - start;
+    std::cout << elapsedTime.count() << " ms" << std::endl;
+    for (int i = 0; i < 4; i++) {
         float elapsedTime;
         cudaEventElapsedTime(&elapsedTime, start[i], end[i]);
-        std::cout << "Stream " << i << ": " << elapsedTime << " ms" << std::endl;
+        // std::cout << "Stream " << i << ": " << elapsedTime << " ms" << std::endl;
     }
 
     delete[] W1;
@@ -147,8 +151,10 @@ int main(int argc, char** argv) {
     cudaFree(d_output1);
     cudaFree(d_output2);
 
-    cudaEventDestroy(start);
-    cudaEventDestroy(end);
+    for (int i = 0; i < 4; i++) {
+        cudaEventDestroy(start[i]);
+        cudaEventDestroy(end[i]);
+    }
     for (int i = 0; i < 4; i++) {
         cudaStreamDestroy(stream[i]);
     }
