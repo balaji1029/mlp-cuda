@@ -105,7 +105,7 @@ int main(int argc, char**argv) {
     cudaStreamSynchronize(stream);
 
     float elapsedTime;
-    cudaEventElapsedTime(&float, start, end);
+    cudaEventElapsedTime(&elapsedTime, start, end);
 
     std::cout << elapsedTime << std::endl;
 
