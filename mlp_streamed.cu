@@ -75,12 +75,12 @@ int main(int argc, char** argv) {
         N = std::stoul(argv[1]);
     }
 
-    float* W1 = new float[N * N * sizeof(float)];
-    float* W2 = new float[(N * N * sizeof(float))];
+    float* W1 = new float[N * N];
+    float* W2 = new float[N * N];
 
     float* input[4];
     for (int i = 0; i < 4; i++) {
-        input[i] = new float[(N * (B / 4) * sizeof(float))];
+        input[i] = new float[N * (B / 4)];
     }
 
     for (int i = 0; i < N * N; i++) {
@@ -100,16 +100,22 @@ int main(int argc, char** argv) {
     float* d_output1[4];
     float* d_output2[4];
 
+    for (int i = 0; i < 4; i++) {
+        cudaMalloc(&d_input[i], N * (B / 4) * sizeof(float));
+        cudaMalloc(&d_output1[i], N * (B / 4) * sizeof(float));
+        cudaMalloc(&d_output2[i], N * (B / 4) * sizeof(float));
+    }
+
     cudaMalloc(&d_W1, N * N * sizeof(float));
     cudaMalloc(&d_W2, N * N * sizeof(float));
 
-    cudaMemcpy(d_input, input, N * B * sizeof(float), cudaMemcpyHostToDevice);
+    // cudaMemcpy(d_input, input, N * B * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(d_W1, W1, N * N * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(d_W2, W2, N * N * sizeof(float), cudaMemcpyHostToDevice);
 
-    dim3 gridSize1(CEIL_DIV(B, BLOCK_SIZE), CEIL_DIV(N, NELEM * BLOCK_SIZE));
+    dim3 gridSize1(CEIL_DIV(B/4, BLOCK_SIZE), CEIL_DIV(N, NELEM * BLOCK_SIZE));
     dim3 blockSize1(BLOCK_SIZE, BLOCK_SIZE);
-    dim3 gridSize_relu(CEIL_DIV(B, BLOCK_SIZE), CEIL_DIV(N, BLOCK_SIZE));
+    dim3 gridSize_relu(CEIL_DIV(B/4, BLOCK_SIZE), CEIL_DIV(N, BLOCK_SIZE));
     dim3 blockSize_relu(BLOCK_SIZE, BLOCK_SIZE);
 
     cudaStream_t stream[4];
