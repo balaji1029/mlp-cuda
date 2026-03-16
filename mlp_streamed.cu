@@ -131,6 +131,7 @@ int main(int argc, char** argv) {
     for (int i = 0; i < 4; i++) {
         cudaStreamSynchronize(stream[i]);
     }
+    cudaDeviceSynchronize();
     auto end_chrono = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsedTime = end_chrono - start_chrono;
     std::cout << elapsedTime.count() << std::endl;
