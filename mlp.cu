@@ -113,18 +113,21 @@ int main(int argc, char** argv) {
     cudaEventRecord(start, stream);
 
     tiling_matmul << < gridSize1, blockSize1, 0, stream >> > (d_W1, d_input, d_output1, N, B, N);
-    relu_kernel << < gridSize_relu, blockSize_relu, 0, stream >> > (d_output1, N, B);
-    tiling_matmul << < gridSize1, blockSize1, 0, stream >> > (d_W2, d_output1, d_output2, N, B, N);
 
     cudaEventRecord(end, stream);
     cudaStreamSynchronize(stream);
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess)
-        std::cout << cudaGetErrorString(err) << std::endl;
     float elapsedTime;
     cudaEventElapsedTime(&elapsedTime, start, end);
-
     std::cout << elapsedTime << std::endl;
+
+    // relu_kernel << < gridSize_relu, blockSize_relu, 0, stream >> > (d_output1, N, B);
+
+    // tiling_matmul << < gridSize1, blockSize1, 0, stream >> > (d_W2, d_output1, d_output2, N, B, N);
+
+    // cudaError_t err = cudaGetLastError();
+    // if (err != cudaSuccess)
+    //     std::cout << cudaGetErrorString(err) << std::endl;
+
 
     // cudaMalloc(&d_W2, N * N * sizeof(float));
     // cudaMalloc(&d_output2, N * B * sizeof(float));
