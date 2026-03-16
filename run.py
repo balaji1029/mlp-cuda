@@ -9,14 +9,14 @@ if __name__ == "__main__":
     N_sizes = [32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768]
     
     # Run with command line arguments from 32 to 32k in powers of 2
-    # for N in N_sizes:
-    #     print(f"Running with N={N}")
-    #     subprocess.run(["./a.out", str(N)], check=True)
-    #     output = subprocess.check_output(["./a.out", str(N)])
-    #     # print(output.decode())
-    #     elapsedTime = float(output.decode().strip())
-    #     print(f"Elapsed time for N={N}: {elapsedTime} ms")
-    #     batched.append(elapsedTime)
+    for N in N_sizes:
+        print(f"Running with N={N}")
+        subprocess.run(["./a.out", str(N)], check=True)
+        output = subprocess.check_output(["./a.out", str(N)])
+        # print(output.decode())
+        elapsedTime = float(output.decode().strip())
+        print(f"Elapsed time for N={N}: {elapsedTime} ms")
+        batched.append(elapsedTime)
 
     # Running with N=32
     # 5.01146
@@ -87,7 +87,7 @@ if __name__ == "__main__":
     # Elapsed time for N=32768: 219.851 ms
 
     batched = [2.98202, 3.38221, 8.28614, 3.86765, 5.5296, 13.9993, 33.3957, 115.688, 993.196, 3210.24, 4413.7]
-    streamed = [200.587, 218.729, 203.09, 209.687, 202.253, 207.529, 208.704, 210.013, 220.587, 230.059, 219.851]
+    # streamed = [200.587, 218.729, 203.09, 209.687, 202.253, 207.529, 208.704, 210.013, 220.587, 230.059, 219.851]
     
     # Plot the results
     plt.figure(figsize=(10, 6))
