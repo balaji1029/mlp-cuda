@@ -84,6 +84,7 @@ int main(int argc, char**argv) {
     cudaMalloc(&d_input, N * B * sizeof(float));
     cudaMalloc(&d_W1, N * N * sizeof(float));
     cudaMalloc(&d_output1, N * B * sizeof(float));
+    cudaMalloc(&d_output2, N * B * sizeof(float));
 
     cudaMemcpy(d_input, input, N * B * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(d_W1, W1, N * N * sizeof(float), cudaMemcpyHostToDevice);
