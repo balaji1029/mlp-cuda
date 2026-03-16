@@ -118,7 +118,7 @@ int main(int argc, char** argv) {
         cudaEventCreate(&start[i]);
         cudaEventCreate(&end[i]);
     }
-    auto start = std::chrono::high_resolution_clock::now();
+    auto start_chrono = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < 4; i++) {
         cudaEventRecord(start[i], stream[i]);
         cudaMemcpyAsync(d_input[i], input[i], N * (B / 4) * sizeof(float), cudaMemcpyHostToDevice, stream[i]);
@@ -130,8 +130,8 @@ int main(int argc, char** argv) {
     for (int i = 0; i < 4; i++) {
         cudaStreamSynchronize(stream[i]);
     }
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double, std::milli> elapsedTime = end - start;
+    auto end_chrono = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> elapsedTime = end_chrono - start_chrono;
     std::cout << elapsedTime.count() << " ms" << std::endl;
     for (int i = 0; i < 4; i++) {
         float elapsedTime;
