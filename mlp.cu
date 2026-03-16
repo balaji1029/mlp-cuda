@@ -91,9 +91,10 @@ int main(int argc, char**argv) {
     dim3 gridSize(CEIL_DIV(N, BLOCK_SIZE), CEIL_DIV(N, NELEM * BLOCK_SIZE));
     dim3 blockSize(BLOCK_SIZE, BLOCK_SIZE);
     
-    cudaEvent_t start, stop;
+    cudaEvent_t start, end;
     cudaStream_t stream;
-
+    cudaStreamCreate(&stream);
+    
     cudaEventRecord(start, stream);
 
     tiling_matmul <<< gridSize, blockSize, 0, stream >>> (d_W1, d_input, d_output1, N, B, N);
