@@ -9,14 +9,14 @@ if __name__ == "__main__":
     N_sizes = [32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768]
     
     # Run with command line arguments from 32 to 32k in powers of 2
-    # for N in N_sizes:
-    #     print(f"Running with N={N}")
-    #     subprocess.run(["./mlp", str(N)], check=True)
-    #     output = subprocess.check_output(["./mlp", str(N)])
-    #     # print(output.decode())
-    #     elapsedTime = float(output.decode().strip())
-    #     print(f"Elapsed time for N={N}: {elapsedTime} ms")
-    #     batched.append(elapsedTime)
+    for N in N_sizes:
+        print(f"Running with N={N}")
+        subprocess.run(["./a.out", str(N)], check=True)
+        output = subprocess.check_output(["./a.out", str(N)])
+        # print(output.decode())
+        elapsedTime = float(output.decode().strip())
+        print(f"Elapsed time for N={N}: {elapsedTime} ms")
+        batched.append(elapsedTime)
 
     # Running with N=32
     # 5.01146
