@@ -112,27 +112,28 @@ int main(int argc, char** argv) {
     dim3 blockSize_relu(BLOCK_SIZE, BLOCK_SIZE);
 
     cudaStream_t stream[4];
-    cudaEvent_t start, end;
+    cudaEvent_t start[4], end[4];
     for (int i = 0; i < 4; i++) {
         cudaStreamCreate(&stream[i]);
+        cudaEventCreate(&start[i]);
+        cudaEventCreate(&end[i]);
     }
-    cudaEventCreate(&start);
-    cudaEventCreate(&end);
     for (int i=0; i<4; i++) {
-        cudaEventRecord(start, stream[i]);
+        cudaEventRecord(start[i], stream[i]);
         cudaMemcpyAsync(d_input[i], input[i], N * (B / 4) * sizeof(float), cudaMemcpyHostToDevice, stream[i]);
         tiling_matmul << < gridSize1, blockSize1, 0, stream[i] >> > (d_W1, d_input[i], d_output1[i], N, (B / 4), N);
         relu_kernel << < gridSize_relu, blockSize_relu, 0, stream[i] >> > (d_output1[i], N, (B / 4));
         tiling_matmul << < gridSize1, blockSize1, 0, stream[i] >> > (d_W2, d_output1[i], d_output2[i], N, (B / 4), N);
-        cudaEventRecord(end, stream[i]);
+        cudaEventRecord(end[i], stream[i]);
     }
     for (int i=0; i<4; i++) {
         cudaStreamSynchronize(stream[i]);
     }
-    float elapsedTime;
-    cudaEventElapsedTime(&elapsedTime, start, end);
-
-    std::cout << elapsedTime << std::endl;
+    for (int i=0; i<4; i++) {
+        float elapsedTime;
+        cudaEventElapsedTime(&elapsedTime, start[i], end[i]);
+        std::cout << "Stream " << i << ": " << elapsedTime << " ms" << std::endl;
+    }
 
     delete[] W1;
     delete[] W2;
