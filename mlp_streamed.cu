@@ -133,7 +133,7 @@ int main(int argc, char** argv) {
     }
     auto end_chrono = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> elapsedTime = end_chrono - start_chrono;
-    std::cout << elapsedTime.count() << " ms" << std::endl;
+    std::cout << elapsedTime.count() << std::endl;
     for (int i = 0; i < 4; i++) {
         float elapsedTime;
         cudaEventElapsedTime(&elapsedTime, start[i], end[i]);
