@@ -14,7 +14,7 @@ if __name__ == "__main__":
         subprocess.run(["./mlp", str(N)], check=True)
         output = subprocess.check_output(["./mlp", str(N)])
         # print(output.decode())
-        float elapsedTime = float(output.decode().strip())
+        elapsedTime = float(output.decode().strip())
         print(f"Elapsed time for N={N}: {elapsedTime} ms")
         batched.append(elapsedTime)
     
