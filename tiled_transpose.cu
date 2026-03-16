@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
     cudaEventRecord(stop, stream);
     cudaMemcpyAsync(B, dev_B, M * N * sizeof(float), cudaMemcpyDeviceToHost, stream);
 
-    cudaStreamSynchronize();
+    cudaStreamSynchronize(stream);
     float elapsedTime;
     cudaEventElapsedTime(&elapsedTime, start, stop);
 
