@@ -136,7 +136,9 @@ int main(int argc, char** argv) {
 
     delete[] W1;
     delete[] W2;
-    delete[] input;
+    for (int i = 0; i < 4; i++) {
+        delete[] input[i];
+    }
 
     cudaFree(d_W1);
     cudaFree(d_W2);
@@ -145,6 +147,10 @@ int main(int argc, char** argv) {
     cudaFree(d_output2);
 
     cudaEventDestroy(start);
+    cudaEventDestroy(end);
+    for (int i = 0; i < 4; i++) {
+        cudaStreamDestroy(stream[i]);
+    }
 
     return 0;
 
