@@ -85,8 +85,8 @@ int main(int argc, char**argv) {
     cudaMalloc(&d_W1, N * N * sizeof(float));
     cudaMalloc(&d_output1, N * B * sizeof(float));
 
-    cudaMemcpy(d_input, input, N * B * sizeof(float));
-    cudaMemcpy(d_W1, W1, N * N * sizeof(float));
+    cudaMemcpy(d_input, input, N * B * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_W1, W1, N * N * sizeof(float), cudaMemcpyHostToDevice);
 
     dim3 gridSize(CEIL_DIV(N, BLOCK_SIZE), CEIL_DIV(N, NELEM * BLOCK_SIZE));
     dim3 blockSize(BLOCK_SIZE, BLOCK_SIZE);
@@ -94,7 +94,8 @@ int main(int argc, char**argv) {
     cudaEvent_t start, end;
     cudaStream_t stream;
     cudaStreamCreate(&stream);
-    
+    cudaEventCreate(&start);
+    cudaEventCreate(&end);
     cudaEventRecord(start, stream);
 
     tiling_matmul <<< gridSize, blockSize, 0, stream >>> (d_W1, d_input, d_output1, N, B, N);
