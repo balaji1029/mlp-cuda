@@ -1,6 +1,7 @@
 #include <cuda_runtime.h>
 #include <string>
 #include <iostream>
+#include <chrono>
 
 #define NELEM 6
 #define BLOCK_SIZE 32
