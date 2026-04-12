@@ -282,8 +282,8 @@ int main(int argc, char* argv[]) {
     cudaFree(A1); cudaFree(A2); cudaFree(A3);
     cudaFree(dW1); cudaFree(dW2); cudaFree(dW3); cudaFree(dW4);
     cudaFree(db1); cudaFree(db2); cudaFree(db3); cudaFree(db4);
-    cudaFree(dZ4); cudaFree(dZ3); cudaFree(dZ2); cudaFree(dZ1);
-    cudaFree(dA3); cudaFree(dA2); cudaFree(dA1);
+    // cudaFree(dZ4); cudaFree(dZ3); cudaFree(dZ2); cudaFree(dZ1);
+    // cudaFree(dA3); cudaFree(dA2); cudaFree(dA1);
 
     return 0;
 }
