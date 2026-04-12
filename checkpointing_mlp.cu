@@ -173,13 +173,8 @@ int main(int argc, char* argv[]) {
     // Device allocations - forward pass activations
     float *Z1, *Z2, *Z3, *Z4;
     float *A1, *A2, *A3;
-    cudaMalloc((void**)&Z1, BATCH * H1 * sizeof(float));
-    cudaMalloc((void**)&Z2, BATCH * H2 * sizeof(float));
-    cudaMalloc((void**)&Z3, BATCH * H3 * sizeof(float));
-    cudaMalloc((void**)&Z4, BATCH * OUT * sizeof(float));
-    cudaMalloc((void**)&A1, BATCH * H1 * sizeof(float));
     cudaMalloc((void**)&A2, BATCH * H2 * sizeof(float));
-    cudaMalloc((void**)&A3, BATCH * H3 * sizeof(float));
+    cudaMalloc((void**)&Z4, BATCH * OUT * sizeof(float));
 
     // Device allocations - weight gradients
     float *dW1, *dW2, *dW3, *dW4;
@@ -214,6 +209,12 @@ int main(int argc, char* argv[]) {
     // cudaMemcpy(X, h_X, BATCH * IN * sizeof(float), cudaMemcpyHostToDevice);
     // cudaMemcpy(Y, h_Y, BATCH * OUT * sizeof(float), cudaMemcpyHostToDevice);
 
+    size_t freeMem, totalMem;
+    cudaMemGetInfo(&freeMem, &totalMem);
+
+    std::cout << "Free memory before forward pass: " << freeMem / (1024.0 * 1024.0) << " MB" << std::endl;
+    std::cout << "Total memory: " << totalMem / (1024.0 * 1024.0) << " MB" << std::endl;
+
     // Timing setup
     cudaEvent_t start, end;
     cudaEventCreate(&start);
@@ -222,6 +223,13 @@ int main(int argc, char* argv[]) {
     cudaEventRecord(start);
 
     // === Forward pass ===
+
+    cudaMalloc((void**)&Z1, BATCH * H1 * sizeof(float));
+    cudaMalloc((void**)&Z2, BATCH * H2 * sizeof(float));
+    cudaMalloc((void**)&Z3, BATCH * H3 * sizeof(float));
+    cudaMalloc((void**)&A1, BATCH * H1 * sizeof(float));
+    cudaMalloc((void**)&A3, BATCH * H3 * sizeof(float));
+
     matmul_bias_wrapper(X, W1, b1, Z1, BATCH, IN, H1);
     relu_wrapper(Z1, A1, BATCH, H1);
     matmul_bias_wrapper(A1, W2, b2, Z2, BATCH, H1, H2);
@@ -230,7 +238,26 @@ int main(int argc, char* argv[]) {
     relu_wrapper(Z3, A3, BATCH, H3);
     matmul_bias_wrapper(A3, W4, b4, Z4, BATCH, H3, OUT);
 
+    cudaFree(Z1); cudaFree(Z2); cudaFree(Z3); cudaFree(A1); cudaFree(A3);
+
+
     // === Backward pass ===
+
+
+    cudaMalloc((void**)&Z1, BATCH * H1 * sizeof(float));
+    cudaMalloc((void**)&Z2, BATCH * H2 * sizeof(float));
+    cudaMalloc((void**)&Z3, BATCH * H3 * sizeof(float));
+    cudaMalloc((void**)&A1, BATCH * H1 * sizeof(float));
+    cudaMalloc((void**)&A3, BATCH * H3 * sizeof(float));
+
+    matmul_bias_wrapper(X, W1, b1, Z1, BATCH, IN, H1);
+    relu_wrapper(Z1, A1, BATCH, H1);
+    matmul_bias_wrapper(A1, W2, b2, Z2, BATCH, H1, H2);
+    relu_wrapper(Z2, A2, BATCH, H2);
+    matmul_bias_wrapper(A2, W3, b3, Z3, BATCH, H2, H3);
+    relu_wrapper(Z3, A3, BATCH, H3);
+    matmul_bias_wrapper(A3, W4, b4, Z4, BATCH, H3, OUT);
+
     // Output layer gradient: dZ4 = 2/(BATCH*OUT) * (Z4 - Y)
     subtract_wrapper(Z4, Y, Z4, BATCH, OUT, 2.0f / (BATCH * OUT));
 
@@ -273,12 +300,12 @@ int main(int argc, char* argv[]) {
     cudaEventDestroy(start);
     cudaEventDestroy(end);
 
-    size_t freeMem, totalMem;
+    // size_t freeMem, totalMem;
 
-    cudaMemGetInfo(&freeMem, &totalMem);
+    // cudaMemGetInfo(&freeMem, &totalMem);
 
-    std::cout << "Free memory: " << freeMem / (1024.0 * 1024.0) << " MB" << std::endl;
-    std::cout << "Total memory: " << totalMem / (1024.0 * 1024.0) << " MB" << std::endl;
+    // std::cout << "Free memory: " << freeMem / (1024.0 * 1024.0) << " MB" << std::endl;
+    // std::cout << "Total memory: " << totalMem / (1024.0 * 1024.0) << " MB" << std::endl;
 
     // free(h_W1); free(h_W2); free(h_W3); free(h_W4);
     // free(h_X); free(h_Y);
