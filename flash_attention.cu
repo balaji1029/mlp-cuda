@@ -15,7 +15,7 @@ __global__ void flash_attention_kernel(
     int qkv_base = (b * H + h) * N * D; // Base index for Q, K, V
     int lm_base = (b * H + h) * N; // Base index for l and m
 
-    __shared__ float smem[]; // Shared memory for Q, K, V, and output tile
+    extern __shared__ float smem[]; // Shared memory for Q, K, V, and output tile
     float* Qi = smem; // Q tile: Br x D
     float* Kj = Qi + Br * D; // K tile: Bc x D
     float* Vj = Kj + Bc * D; // V tile: Bc x D
