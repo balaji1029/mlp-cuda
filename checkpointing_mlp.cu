@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
+#include <iostream>
 
 #define BLOCK_SIZE 32
 #define CEIL_DIV(a, b) (((a) + (b) - 1) / (b))

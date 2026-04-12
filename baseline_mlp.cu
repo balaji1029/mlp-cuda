@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
+#include <iostream>
 
 #define BLOCK_SIZE 32
 #define CEIL_DIV(a, b) (((a) + (b) - 1) / (b))
@@ -271,6 +272,13 @@ int main(int argc, char* argv[]) {
     // Cleanup
     cudaEventDestroy(start);
     cudaEventDestroy(end);
+
+    size_t freeMem, totalMem;
+
+    cudaMemGetInfo(&freeMem, &totalMem);
+
+    std::cout << "Free memory: " << freeMem / (1024.0 * 1024.0) << " MB" << std::endl;
+    std::cout << "Total memory: " << totalMem / (1024.0 * 1024.0) << " MB" << std::endl;
 
     // free(h_W1); free(h_W2); free(h_W3); free(h_W4);
     // free(h_X); free(h_Y);
