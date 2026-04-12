@@ -1,5 +1,5 @@
 from numpy import dtype
-
+import matplotlib.pyplot as plt
 import torch
 
 B = 8
@@ -50,7 +50,15 @@ def flash_attention_naive(Q, K, V):
             # l[:, :, i*Br:(i+1)*Br, :] = l[:, :, i*Br:(i+1)*Br, :] * torch.exp(m[:, :, i*Br:(i+1)*Br, :] - m_ij) + l_ij * torch.exp(m[:, :, i*Br:(i+1)*Br, :] - m_ij)
     return O
 
+def flash_attention_torch(Q, K, V):
+    return torch.nn.functional.scaled_dot_product_attention(Q, K, V)
+
 if __name__ == "__main__":
+
+    naive_times = []
+    flash_attention_naive_times = []
+    flash_attention_torch_times = []
+
     for N in [32, 64, 128, 256, 512, 1024, 2048, 4096]:
         # Create Q, K, V in proper multi-head shape: (B, num_heads, seq_len, head_dim)
         Q = torch.randn(B, N_H, N, D, device=device, dtype=torch.float16)
@@ -73,6 +81,7 @@ if __name__ == "__main__":
         end.record()
         torch.cuda.synchronize()
 
+        naive_times.append(start.elapsed_time(end))
         print(f"Regular attention time: {start.elapsed_time(end):.3f} ms")
 
         start = torch.cuda.Event(enable_timing=True)
@@ -87,7 +96,32 @@ if __name__ == "__main__":
         if not torch.allclose(output, output_flash, atol=1e-2):
             print("Outputs do not match!")
 
+        flash_attention_naive_times.append(start.elapsed_time(end))
         print(f"Flash attention time: {start.elapsed_time(end):.3f} ms")
+
+        start = torch.cuda.Event(enable_timing=True)
+        end = torch.cuda.Event(enable_timing=True)
+
+        start.record()
+        output_flash_torch = flash_attention_torch(Q, K, V)
+        end.record()
+
+        torch.cuda.synchronize()
+
+        if not torch.allclose(output, output_flash_torch, atol=1e-2):
+            print("Outputs do not match!")
+
+        flash_attention_torch_times.append(start.elapsed_time(end))
+        print(f"Flash attention (Torch) time: {start.elapsed_time(end):.3f} ms")
+
+    plt.plot([32, 64, 128, 256, 512, 1024, 2048, 4096], naive_times, label="Regular Attention")
+    plt.plot([32, 64, 128, 256, 512, 1024, 2048, 4096], flash_attention_naive_times, label="Flash Attention (Naive)")
+    plt.plot([32, 64, 128, 256, 512, 1024, 2048, 4096], flash_attention_torch_times, label="Flash Attention (Torch)")
+    plt.xlabel("Sequence Length")
+    plt.ylabel("Time (ms)")
+    plt.legend()
+    # plt.show()
+    plt.savefig("attention_times.png")
 
     # print(f"Output shape: {output.shape}")           # Should be [8, 16, 32, 64]
     # print(f"Max memory: {torch.cuda.max_memory_allocated() / 1024**2:.1f} MB")
