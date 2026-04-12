@@ -32,7 +32,7 @@ def flash_attention_naive(Q, K, V):
         V_j = V[:, :, j*Bc:(j+1)*Bc, :]
         for i in range(Tr):
             Q_i = Q[:, :, i*Br:(i+1)*Br, :]
-            S_ij = torch.matmul(Q_i, K_j.transpose(-2, -1))
+            S_ij = torch.matmul(Q_i, K_j.transpose(-2, -1)) / (D ** 0.5)
             m_ij = torch.max(S_ij, dim=-1, keepdim=True).values
             l_ij = torch.sum(torch.exp(S_ij - m_ij), dim=-1, keepdim=True)
             O[:, :, i*Br:(i+1)*Br, :] += torch.matmul(torch.exp(S_ij - m_ij) / l_ij, V_j)
