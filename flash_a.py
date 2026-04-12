@@ -23,9 +23,9 @@ def flash_attention_naive(Q, K, V):
     Tc = (N + Bc - 1) // Bc
     Tr = (N + Br - 1) // Br
 
-    O = torch.zeros_like(Q)
-    l = torch.zeros((B, N_H, N, 1))
-    m = torch.zeros((B, N_H, N, 1))
+    O = torch.zeros_like(Q, device=device, dtype=torch.float16)
+    l = torch.zeros((B, N_H, N, 1), device=device, dtype=torch.float16)
+    m = torch.zeros((B, N_H, N, 1), device=device, dtype=torch.float16)
 
     for j in range(Tc):
         K_j = K[:, :, j*Bc:(j+1)*Bc, :]
