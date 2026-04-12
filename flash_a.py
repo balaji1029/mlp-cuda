@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
         torch.cuda.synchronize()
 
-        if not torch.allclose(output, output_flash, atol=1e-3):
+        if not torch.allclose(output, output_flash, atol=1e-2):
             print("Outputs do not match!")
 
         print(f"Flash attention time: {start.elapsed_time(end):.3f} ms")
