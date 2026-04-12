@@ -42,8 +42,8 @@ def flash_attention_naive(Q, K, V):
             m_new = torch.max(m_i, m_ij)
             l_new = torch.exp(m_i - m_new) * l_i + torch.exp(m_ij - m_new) * l_ij
             O[:, :, i*Br:(i+1)*Br, :] = torch.diag_embed(1 / l_new.squeeze(-1)) @ (
-                torch.diag_embed(l_i.squeeze(-1)) @ torch.exp(m_i - m_new).unsqueeze(-1) * O_i +
-                torch.exp(m_ij - m_new).unsqueeze(-1) * (P_ij @ V_j)
+                (torch.diag_embed(l_i.squeeze(-1)) @ torch.exp(m_i - m_new)) * O_i +
+                torch.diag_embed(torch.exp(m_ij - m_new).squeeze(-1)) @ (P_ij @ V_j)
             )
             l_i.copy_(l_new)
             m_i.copy_(m_new)
