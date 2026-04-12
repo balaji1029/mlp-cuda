@@ -31,13 +31,23 @@ def flash_attention_naive(Q, K, V):
         K_j = K[:, :, j*Bc:(j+1)*Bc, :]
         V_j = V[:, :, j*Bc:(j+1)*Bc, :]
         for i in range(Tr):
+            l_i = l[:, :, i*Br:(i+1)*Br, :]
+            m_i = m[:, :, i*Br:(i+1)*Br, :]
             Q_i = Q[:, :, i*Br:(i+1)*Br, :]
+            O_i = O[:, :, i*Br:(i+1)*Br, :]
             S_ij = torch.matmul(Q_i, K_j.transpose(-2, -1)) / (D ** 0.5)
             m_ij = torch.max(S_ij, dim=-1, keepdim=True).values
-            l_ij = torch.sum(torch.exp(S_ij - m_ij), dim=-1, keepdim=True)
-            O[:, :, i*Br:(i+1)*Br, :] += torch.matmul(torch.exp(S_ij - m_ij) / l_ij, V_j)
-            m[:, :, i*Br:(i+1)*Br, :] = torch.max(m[:, :, i*Br:(i+1)*Br, :], m_ij)
-            l[:, :, i*Br:(i+1)*Br, :] = l[:, :, i*Br:(i+1)*Br, :] * torch.exp(m[:, :, i*Br:(i+1)*Br, :] - m_ij) + l_ij * torch.exp(m[:, :, i*Br:(i+1)*Br, :] - m_ij)
+            P_ij = torch.exp(S_ij - m_ij)
+            l_ij = torch.sum(P_ij, dim=-1, keepdim=True)
+            m_new = torch.max(m_i, m_ij)
+            l_new = torch.exp(m_i - m_new) * l_i + torch.exp(m_ij - m_new) * l_ij
+            O[:, :, i*Br:(i+1)*Br, :] = torch.diag_embed(1 / l_new.squeeze(-1)) @ (
+                torch.diag_embed(l_i.squeeze(-1)) @ torch.exp(m_i - m_new).unsqueeze(-1) * O_i +
+                torch.exp(m_ij - m_new).unsqueeze(-1) * (P_ij @ V_j)
+            )
+            l_i.copy_(l_new)
+            m_i.copy_(m_new)
+            # l[:, :, i*Br:(i+1)*Br, :] = l[:, :, i*Br:(i+1)*Br, :] * torch.exp(m[:, :, i*Br:(i+1)*Br, :] - m_ij) + l_ij * torch.exp(m[:, :, i*Br:(i+1)*Br, :] - m_ij)
     return O
 
 if __name__ == "__main__":
