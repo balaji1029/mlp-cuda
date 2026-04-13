@@ -68,7 +68,7 @@ __global__ void flash_attention_kernel(
                     pv += S[tx * Bc + y] * Vj[y * D + x];
                 int o_idx = qkv_base + (i * Br + tx) * D + x;
                 O[o_idx] = (l_prev * expf(m_prev - mi_new) * O[o_idx] + expf(row_m - mi_new) * pv) / li_new;
-            }
+            }g
             l[lm_idx] = li_new;
             m[lm_idx] = mi_new;
         }
@@ -103,7 +103,16 @@ int main() {
     // Launch the flash attention kernel
     dim3 grid(B, H);
     dim3 block(Br);
-    flash_attention_kernel << <grid, block >> > (Q, K, V, O, l, m, B, H, N, D, Tr, Tc, Br, Bc);
+    // Initialize O=0, l=0, m=-INFINITY
+    cudaMemset(O, 0, B * H * N * D * sizeof(float));
+    cudaMemset(l, 0, B * H * N * sizeof(float));
+    float* h_m_init = new float[B * H * N];
+    for (int i = 0; i < B * H * N; i++) h_m_init[i] = -INFINITY;
+    cudaMemcpy(m, h_m_init, B * H * N * sizeof(float), cudaMemcpyHostToDevice);
+    delete[] h_m_init;
+
+    size_t smem_size = (Br * D + Bc * D + Bc * D + Br * Bc) * sizeof(float);
+    flash_attention_kernel << <grid, block, smem_size >> > (Q, K, V, O, l, m, B, H, N, D, Tr, Tc, Br, Bc);
 
     // Free device memory
     cudaFree(Q);

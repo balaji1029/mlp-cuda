@@ -79,40 +79,40 @@ __global__ void bias_grad(const float* dZ, float* db, const size_t M, const size
 
 // Wrappers
 
-void matmul_wrapper(const float* A, const float* B, float* C, const size_t M, const size_t N, const size_t K, bool transA = false, bool transB = false) {
+void matmul_wrapper(const float* A, const float* B, float* C, const size_t M, const size_t N, const size_t K, bool transA = false, bool transB = false, cudaStream_t stream = 0) {
     dim3 blockSize(BLOCK_SIZE, BLOCK_SIZE);
     dim3 gridSize(CEIL_DIV(K, BLOCK_SIZE), CEIL_DIV(M, BLOCK_SIZE));
-    matmul<<<gridSize, blockSize>>>(A, B, C, M, N, K, transA, transB);
+    matmul<<<gridSize, blockSize, 0, stream>>>(A, B, C, M, N, K, transA, transB);
 }
 
-void matmul_bias_wrapper(const float* A, const float* B, const float* bias, float* C, const size_t M, const size_t N, const size_t K, bool transA = false, bool transB = false) {
+void matmul_bias_wrapper(const float* A, const float* B, const float* bias, float* C, const size_t M, const size_t N, const size_t K, bool transA = false, bool transB = false, cudaStream_t stream = 0) {
     dim3 blockSize(BLOCK_SIZE, BLOCK_SIZE);
     dim3 gridSize(CEIL_DIV(K, BLOCK_SIZE), CEIL_DIV(M, BLOCK_SIZE));
-    matmul_bias<<<gridSize, blockSize>>>(A, B, bias, C, M, N, K, transA, transB);
+    matmul_bias<<<gridSize, blockSize, 0, stream>>>(A, B, bias, C, M, N, K, transA, transB);
 }
 
-void relu_wrapper(const float* A, float* C, const size_t M, const size_t N) {
+void relu_wrapper(const float* A, float* C, const size_t M, const size_t N, cudaStream_t stream = 0) {
     dim3 blockSize(BLOCK_SIZE, BLOCK_SIZE);
     dim3 gridSize(CEIL_DIV(N, BLOCK_SIZE), CEIL_DIV(M, BLOCK_SIZE));
-    relu<<<gridSize, blockSize>>>(A, C, M, N);
+    relu<<<gridSize, blockSize, 0, stream>>>(A, C, M, N);
 }
 
-void relu_backward_wrapper(const float* dA, const float* Z, float* dZ, const size_t M, const size_t N) {
+void relu_backward_wrapper(const float* dA, const float* Z, float* dZ, const size_t M, const size_t N, cudaStream_t stream = 0) {
     dim3 blockSize(BLOCK_SIZE, BLOCK_SIZE);
     dim3 gridSize(CEIL_DIV(N, BLOCK_SIZE), CEIL_DIV(M, BLOCK_SIZE));
-    relu_backward<<<gridSize, blockSize>>>(dA, Z, dZ, M, N);
+    relu_backward<<<gridSize, blockSize, 0, stream>>>(dA, Z, dZ, M, N);
 }
 
-void subtract_wrapper(const float* A, const float* B, float* C, const size_t M, const size_t N, float alpha) {
+void subtract_wrapper(const float* A, const float* B, float* C, const size_t M, const size_t N, float alpha, cudaStream_t stream = 0) {
     dim3 blockSize(BLOCK_SIZE, BLOCK_SIZE);
     dim3 gridSize(CEIL_DIV(N, BLOCK_SIZE), CEIL_DIV(M, BLOCK_SIZE));
-    subtract<<<gridSize, blockSize>>>(A, B, C, M, N, alpha);
+    subtract<<<gridSize, blockSize, 0, stream>>>(A, B, C, M, N, alpha);
 }
 
-void bias_grad_wrapper(const float* dZ, float* db, const size_t M, const size_t N) {
+void bias_grad_wrapper(const float* dZ, float* db, const size_t M, const size_t N, cudaStream_t stream = 0) {
     int threads = 256;
     int blocks = CEIL_DIV(N, threads);
-    bias_grad<<<blocks, threads>>>(dZ, db, M, N);
+    bias_grad<<<blocks, threads, 0, stream>>>(dZ, db, M, N);
 }
 
 #define BATCH 1024
@@ -196,15 +196,15 @@ int main(int argc, char* argv[]) {
     cudaMalloc((void**)&db4, OUT * sizeof(float));
 
     // Device allocations - backward pass intermediates
-    // float *dZ4, *dZ3, *dZ2, *dZ1;
-    // float *dA3, *dA2, *dA1;
-    // cudaMalloc((void**)&dZ4, BATCH * OUT * sizeof(float));
-    // cudaMalloc((void**)&dZ3, BATCH * H3 * sizeof(float));
-    // cudaMalloc((void**)&dZ2, BATCH * H2 * sizeof(float));
-    // cudaMalloc((void**)&dZ1, BATCH * H1 * sizeof(float));
-    // cudaMalloc((void**)&dA3, BATCH * H3 * sizeof(float));
-    // cudaMalloc((void**)&dA2, BATCH * H2 * sizeof(float));
-    // cudaMalloc((void**)&dA1, BATCH * H1 * sizeof(float));
+    float *dZ4, *dZ3, *dZ2, *dZ1;
+    float *dA3, *dA2, *dA1;
+    cudaMalloc((void**)&dZ4, BATCH * OUT * sizeof(float));
+    cudaMalloc((void**)&dZ3, BATCH * H3 * sizeof(float));
+    cudaMalloc((void**)&dZ2, BATCH * H2 * sizeof(float));
+    cudaMalloc((void**)&dZ1, BATCH * H1 * sizeof(float));
+    cudaMalloc((void**)&dA3, BATCH * H3 * sizeof(float));
+    cudaMalloc((void**)&dA2, BATCH * H2 * sizeof(float));
+    cudaMalloc((void**)&dA1, BATCH * H1 * sizeof(float));
 
     // Copy data to device
     // cudaMemcpy(W1, h_W1, IN * H1 * sizeof(float), cudaMemcpyHostToDevice);
@@ -214,56 +214,83 @@ int main(int argc, char* argv[]) {
     // cudaMemcpy(X, h_X, BATCH * IN * sizeof(float), cudaMemcpyHostToDevice);
     // cudaMemcpy(Y, h_Y, BATCH * OUT * sizeof(float), cudaMemcpyHostToDevice);
 
-    // Timing setup
+    // Streams: compute_stream for gradient propagation, grad_stream for dW/db
+    cudaStream_t compute_stream, grad_stream;
+    cudaStreamCreate(&compute_stream);
+    cudaStreamCreate(&grad_stream);
+
+    // Events for synchronization between streams
     cudaEvent_t start, end;
+    cudaEvent_t dz_ready, grads_done;
     cudaEventCreate(&start);
     cudaEventCreate(&end);
+    cudaEventCreate(&dz_ready);
+    cudaEventCreate(&grads_done);
 
-    cudaEventRecord(start);
+    cudaEventRecord(start, compute_stream);
 
-    // === Forward pass ===
-    matmul_bias_wrapper(X, W1, b1, Z1, BATCH, IN, H1);
-    relu_wrapper(Z1, A1, BATCH, H1);
-    matmul_bias_wrapper(A1, W2, b2, Z2, BATCH, H1, H2);
-    relu_wrapper(Z2, A2, BATCH, H2);
-    matmul_bias_wrapper(A2, W3, b3, Z3, BATCH, H2, H3);
-    relu_wrapper(Z3, A3, BATCH, H3);
-    matmul_bias_wrapper(A3, W4, b4, Z4, BATCH, H3, OUT);
+    // === Forward pass (sequential on compute_stream) ===
+    matmul_bias_wrapper(X, W1, b1, Z1, BATCH, IN, H1, false, false, compute_stream);
+    relu_wrapper(Z1, A1, BATCH, H1, compute_stream);
+    matmul_bias_wrapper(A1, W2, b2, Z2, BATCH, H1, H2, false, false, compute_stream);
+    relu_wrapper(Z2, A2, BATCH, H2, compute_stream);
+    matmul_bias_wrapper(A2, W3, b3, Z3, BATCH, H2, H3, false, false, compute_stream);
+    relu_wrapper(Z3, A3, BATCH, H3, compute_stream);
+    matmul_bias_wrapper(A3, W4, b4, Z4, BATCH, H3, OUT, false, false, compute_stream);
 
-    // === Backward pass ===
-    // Output layer gradient: dZ4 = 2/(BATCH*OUT) * (Z4 - Y)
-    subtract_wrapper(Z4, Y, Z4, BATCH, OUT, 2.0f / (BATCH * OUT));
+    // === Backward pass (2 streams) ===
+    // dZ4 = 2/(BATCH*OUT) * (Z4 - Y)
+    subtract_wrapper(Z4, Y, dZ4, BATCH, OUT, 2.0f / (BATCH * OUT), compute_stream);
 
-    // Layer 4 gradients
-    matmul_wrapper(A3, Z4, dW4, H3, BATCH, OUT, true);
-    bias_grad_wrapper(Z4, db4, BATCH, OUT);
+    // Signal that dZ4 is ready
+    cudaEventRecord(dz_ready, compute_stream);
+    cudaStreamWaitEvent(grad_stream, dz_ready);
 
-    // Propagate to layer 3
-    matmul_wrapper(Z4, W4, A3, BATCH, OUT, H3, false, true);
-    relu_backward_wrapper(A3, Z3, Z3, BATCH, H3);
+    // grad_stream: Layer 4 weight/bias gradients (reads A3, dZ4)
+    matmul_wrapper(A3, dZ4, dW4, H3, BATCH, OUT, true, false, grad_stream);
+    bias_grad_wrapper(dZ4, db4, BATCH, OUT, grad_stream);
 
-    // Layer 3 gradients
-    matmul_wrapper(A2, Z3, dW3, H2, BATCH, H3, true);
-    bias_grad_wrapper(Z3, db3, BATCH, H3);
+    // compute_stream: propagate to layer 3 (writes dA3, dZ3 — separate buffers, no conflict)
+    matmul_wrapper(dZ4, W4, dA3, BATCH, OUT, H3, false, true, compute_stream);
+    relu_backward_wrapper(dA3, Z3, dZ3, BATCH, H3, compute_stream);
 
-    // Propagate to layer 2
-    matmul_wrapper(Z3, W3, A2, BATCH, H3, H2, false, true);
-    relu_backward_wrapper(A2, Z2, Z2, BATCH, H2);
+    // Signal that dZ3 is ready
+    cudaEventRecord(dz_ready, compute_stream);
+    cudaStreamWaitEvent(grad_stream, dz_ready);
 
-    // Layer 2 gradients
-    matmul_wrapper(A1, Z2, dW2, H1, BATCH, H2, true);
-    bias_grad_wrapper(Z2, db2, BATCH, H2);
+    // grad_stream: Layer 3 weight/bias gradients (reads A2, dZ3)
+    matmul_wrapper(A2, dZ3, dW3, H2, BATCH, H3, true, false, grad_stream);
+    bias_grad_wrapper(dZ3, db3, BATCH, H3, grad_stream);
 
-    // Propagate to layer 1
-    matmul_wrapper(Z2, W2, A1, BATCH, H2, H1, false, true);
-    relu_backward_wrapper(A1, Z1, Z1, BATCH, H1);
+    // compute_stream: propagate to layer 2
+    matmul_wrapper(dZ3, W3, dA2, BATCH, H3, H2, false, true, compute_stream);
+    relu_backward_wrapper(dA2, Z2, dZ2, BATCH, H2, compute_stream);
 
-    // Layer 1 gradients
-    matmul_wrapper(X, Z1, dW1, IN, BATCH, H1, true);
-    bias_grad_wrapper(Z1, db1, BATCH, H1);
+    // Signal that dZ2 is ready
+    cudaEventRecord(dz_ready, compute_stream);
+    cudaStreamWaitEvent(grad_stream, dz_ready);
 
-    cudaEventRecord(end);
+    // grad_stream: Layer 2 weight/bias gradients (reads A1, dZ2)
+    matmul_wrapper(A1, dZ2, dW2, H1, BATCH, H2, true, false, grad_stream);
+    bias_grad_wrapper(dZ2, db2, BATCH, H2, grad_stream);
+
+    // compute_stream: propagate to layer 1
+    matmul_wrapper(dZ2, W2, dA1, BATCH, H2, H1, false, true, compute_stream);
+    relu_backward_wrapper(dA1, Z1, dZ1, BATCH, H1, compute_stream);
+
+    // Signal that dZ1 is ready
+    cudaEventRecord(dz_ready, compute_stream);
+    cudaStreamWaitEvent(grad_stream, dz_ready);
+
+    // grad_stream: Layer 1 weight/bias gradients (reads X, dZ1)
+    matmul_wrapper(X, dZ1, dW1, IN, BATCH, H1, true, false, grad_stream);
+    bias_grad_wrapper(dZ1, db1, BATCH, H1, grad_stream);
+
+    // Wait for both streams to finish
+    cudaEventRecord(end, compute_stream);
+    cudaEventRecord(grads_done, grad_stream);
     cudaEventSynchronize(end);
+    cudaEventSynchronize(grads_done);
 
     float elapsedTime;
     cudaEventElapsedTime(&elapsedTime, start, end);
@@ -272,6 +299,10 @@ int main(int argc, char* argv[]) {
     // Cleanup
     cudaEventDestroy(start);
     cudaEventDestroy(end);
+    cudaEventDestroy(dz_ready);
+    cudaEventDestroy(grads_done);
+    cudaStreamDestroy(compute_stream);
+    cudaStreamDestroy(grad_stream);
 
     size_t freeMem, totalMem;
 
@@ -290,8 +321,8 @@ int main(int argc, char* argv[]) {
     cudaFree(A1); cudaFree(A2); cudaFree(A3);
     cudaFree(dW1); cudaFree(dW2); cudaFree(dW3); cudaFree(dW4);
     cudaFree(db1); cudaFree(db2); cudaFree(db3); cudaFree(db4);
-    // cudaFree(dZ4); cudaFree(dZ3); cudaFree(dZ2); cudaFree(dZ1);
-    // cudaFree(dA3); cudaFree(dA2); cudaFree(dA1);
+    cudaFree(dZ4); cudaFree(dZ3); cudaFree(dZ2); cudaFree(dZ1);
+    cudaFree(dA3); cudaFree(dA2); cudaFree(dA1);
 
     return 0;
 }
